@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Storage abstraction: fs in local dev, Vercel KV in production.
-// To enable production storage: Vercel dashboard → Storage → Create KV → link to this project.
 async function appendSubmission(submission: object) {
-  if (process.env.KV_REST_API_URL) {
-    const { kv } = await import('@vercel/kv')
-    await kv.lpush('hone:submissions', JSON.stringify(submission))
+  if (process.env.REDIS_URL) {
+    const Redis = (await import('ioredis')).default
+    const redis = new Redis(process.env.REDIS_URL, { lazyConnect: true, enableReadyCheck: false })
+    await redis.lpush('hone:submissions', JSON.stringify(submission))
+    await redis.quit()
   } else {
     const { promises: fs } = await import('fs')
     const path = await import('path')
     const file = path.join(process.cwd(), 'data', 'submissions.json')
     let existing: object[] = []
-    try {
-      existing = JSON.parse(await fs.readFile(file, 'utf-8'))
-    } catch {}
+    try { existing = JSON.parse(await fs.readFile(file, 'utf-8')) } catch {}
     existing.push(submission)
     await fs.writeFile(file, JSON.stringify(existing, null, 2))
   }

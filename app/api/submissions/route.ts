@@ -3,19 +3,17 @@ import { NextRequest, NextResponse } from 'next/server'
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || 'hone2026'
 
 async function getSubmissions(): Promise<object[]> {
-  if (process.env.KV_REST_API_URL) {
-    const { kv } = await import('@vercel/kv')
-    const raw = await kv.lrange('hone:submissions', 0, -1)
-    return (raw as string[]).map(s => JSON.parse(s)).reverse()
+  if (process.env.REDIS_URL) {
+    const Redis = (await import('ioredis')).default
+    const redis = new Redis(process.env.REDIS_URL, { lazyConnect: true, enableReadyCheck: false })
+    const raw = await redis.lrange('hone:submissions', 0, -1)
+    await redis.quit()
+    return raw.map(s => JSON.parse(s)).reverse()
   } else {
     const { promises: fs } = await import('fs')
     const path = await import('path')
     const file = path.join(process.cwd(), 'data', 'submissions.json')
-    try {
-      return JSON.parse(await fs.readFile(file, 'utf-8'))
-    } catch {
-      return []
-    }
+    try { return JSON.parse(await fs.readFile(file, 'utf-8')) } catch { return [] }
   }
 }
 
