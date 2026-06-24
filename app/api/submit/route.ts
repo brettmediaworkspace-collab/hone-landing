@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { confirmationEmail } from '@/lib/confirmationEmail'
 
 async function appendSubmission(submission: object) {
   if (process.env.REDIS_URL) {
@@ -15,6 +16,18 @@ async function appendSubmission(submission: object) {
     existing.push(submission)
     await fs.writeFile(file, JSON.stringify(existing, null, 2))
   }
+}
+
+async function sendConfirmationEmail(firstName: string, email: string, goal: string) {
+  if (!process.env.RESEND_API_KEY) return
+  const { Resend } = await import('resend')
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  await resend.emails.send({
+    from: 'HONE <hone@appsplosh.com>',
+    to: email,
+    subject: "You're on the list. HONE is coming.",
+    html: confirmationEmail(firstName, goal),
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -39,7 +52,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
     }
 
-    await appendSubmission(submission)
+    // Store submission and send email concurrently
+    await Promise.all([
+      appendSubmission(submission),
+      sendConfirmationEmail(submission.firstName, submission.email, submission.goal),
+    ])
+
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Submit error:', err)
