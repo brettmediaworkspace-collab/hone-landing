@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Vercel
+.vercel/
+
+# Submission data — contains real email addresses, never commit
+data/submissions.json
+
+# Env files
+.env
+.env.local
+.env.production.local
+.env*.local
+
+# OS
+.DS_Store
