@@ -19,15 +19,23 @@ async function appendSubmission(submission: object) {
 }
 
 async function sendConfirmationEmail(firstName: string, email: string, goal: string) {
-  if (!process.env.RESEND_API_KEY) return
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping confirmation email')
+    return
+  }
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY)
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: 'HONE <hone@appsplosh.com>',
     to: email,
     subject: "You're on the list. HONE is coming.",
     html: confirmationEmail(firstName, goal),
   })
+  if (error) {
+    console.error('Resend error:', JSON.stringify(error))
+    throw new Error(`Email failed: ${error.message}`)
+  }
+  console.log('Email sent:', data?.id)
 }
 
 export async function POST(req: NextRequest) {
